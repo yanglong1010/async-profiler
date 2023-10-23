@@ -208,6 +208,20 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
     return depth;
 }
 
+#define STP_RESERVE_2_WORDS_MASK  0XA9BF27FF // stp xzr, x9, [sp, #-16]!
+#define IS_INSTRUCTION(ins, mask)         ((ins) & (mask)) == (mask)
+#define IS_STP_RESERVE_2_WORDS(ins)       IS_INSTRUCTION(ins, STP_RESERVE_2_WORDS_MASK)
+
+uintptr_t deduce_sender_sp(const void* pc, uintptr_t sp) {
+    unsigned ins1 = *((unsigned *) pc - 1);
+    unsigned ins2 = *((unsigned *) pc - 2);
+    if (IS_STP_RESERVE_2_WORDS(ins1) || IS_STP_RESERVE_2_WORDS(ins2)) {
+        return sp + 16;
+    } else {
+        return sp;
+    }
+}
+
 int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth) {
     const void* pc;
     uintptr_t fp;
@@ -269,7 +283,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth) 
                             fillFrame(frames[depth++], type, scope.bci(), scope.method()->id());
                         } while (scope_offset > 0 && depth < max_depth);
                     }
-
+                    sp = deduce_sender_sp(pc, sp);
                     sp += nm->frameSize() * sizeof(void*);
                     fp = ((uintptr_t*)sp)[-FRAME_PC_SLOT - 1];
                     pc = ((const void**)sp)[-FRAME_PC_SLOT];
@@ -362,6 +376,9 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth) 
 
         u8 cfa_reg = (u8)f->cfa;
         int cfa_off = f->cfa >> 8;
+        if (pc >= (void*)0x0000ffffbd2df010 && pc <= (void*)0x0000ffffbd2df01c) {
+            cfa_off = 0x30;
+        }
         if (cfa_reg == DW_REG_SP) {
             sp = sp + cfa_off;
         } else if (cfa_reg == DW_REG_FP) {
@@ -394,6 +411,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth) 
             } else if (cfa_off != 0) {
                 // AArch64
                 pc = stripPointer(((void**)(sp + f->fp_off))[1]);
+                // sp = deduce_sender_sp(pc, sp);
             } else if (f->fp_off != DW_SAME_FP) {
                 // AArch64 default_frame
                 pc = stripPointer(((void**)(sp + f->fp_off))[1]);
