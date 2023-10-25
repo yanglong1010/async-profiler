@@ -94,6 +94,7 @@ class VMStructs {
     static const void* _code_heap_low;
     static const void* _code_heap_high;
     static char** _code_heap_addr;
+    static char** _code_heaps_addr;
     static const void** _code_heap_low_addr;
     static const void** _code_heap_high_addr;
     static int* _klass_offset_addr;
@@ -479,7 +480,7 @@ class CodeHeap : VMStructs {
 
   public:
     static bool available() {
-        return _code_heap_addr != NULL;
+        return _code_heap_addr != NULL || _code_heaps_addr != NULL;
     }
 
     static bool contains(const void* pc) {

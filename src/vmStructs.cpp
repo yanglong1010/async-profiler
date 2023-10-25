@@ -89,6 +89,7 @@ char* VMStructs::_code_heap[3] = {};
 const void* VMStructs::_code_heap_low = NO_MIN_ADDRESS;
 const void* VMStructs::_code_heap_high = NO_MAX_ADDRESS;
 char** VMStructs::_code_heap_addr = NULL;
+char** VMStructs::_code_heaps_addr = NULL;
 const void** VMStructs::_code_heap_low_addr = NULL;
 const void** VMStructs::_code_heap_high_addr = NULL;
 int* VMStructs::_klass_offset_addr = NULL;
@@ -304,7 +305,7 @@ void VMStructs::initOffsets() {
                 if (strcmp(field, "_heap") == 0) {
                     _code_heap_addr = *(char***)(entry + address_offset);
                 } else if (strcmp(field, "_heaps") == 0) {
-                    _code_heap_addr = *(char***)(entry + address_offset);
+                    _code_heaps_addr = *(char***)(entry + address_offset);
                 } else if (strcmp(field, "_low_bound") == 0) {
                     _code_heap_low_addr = *(const void***)(entry + address_offset);
                 } else if (strcmp(field, "_high_bound") == 0) {
@@ -467,8 +468,8 @@ void VMStructs::resolveOffsets() {
             && _thread_exception_offset >= 0
             && _constmethod_size >= 0;
 
-    if (_code_heap_addr != NULL && _code_heap_low_addr != NULL && _code_heap_high_addr != NULL) {
-        char* code_heaps = *_code_heap_addr;
+    if (_code_heaps_addr != NULL && _code_heap_low_addr != NULL && _code_heap_high_addr != NULL) {
+        char* code_heaps = *_code_heaps_addr;
         unsigned int code_heap_count = *(unsigned int*)code_heaps;
         if (code_heap_count <= 3 && _array_data_offset >= 0) {
             char* code_heap_array = *(char**)(code_heaps + _array_data_offset);
